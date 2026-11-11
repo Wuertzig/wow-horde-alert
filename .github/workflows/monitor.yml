@@ -25,7 +25,6 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Check for unlock reports
         env:
-          HORDE_TEST: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python bot.py
