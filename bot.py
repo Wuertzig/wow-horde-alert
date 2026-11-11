@@ -30,7 +30,41 @@ HORDE = re.compile(r'\bhorde\b', re.I)
 CONTEXT = re.compile(r'\b(forever|eu.pvp|pvp.eu|character creation|char creation|charaktererstellung|faction lock|fraktionssperre)\b', re.I)
 NEGATIVE = re.compile(r'\b(not unlocked|still locked|is locked|remains locked|nicht freigeschaltet|weiterhin gesperrt|noch gesperrt)\b', re.I)
 
+def check_blizzard_forum(previous, current, matches):
+    url = 'https://eu.forums.blizzard.com/en/wow/t/639733.json'
 
+    response = requests.get(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0'},
+        timeout=20,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    posts = data.get('post_stream', {}).get('posts', [])
+
+    for post in posts:
+        post_id = f"blizzard:{post['id']}"
+        if post_id in current:
+            continue
+
+        content = re.sub('<[^>]*>', ' ', post.get('cooked', ''))
+        title = data.get('title', 'WoW Forever Horde')
+        text = f'{title} {content}'
+
+        if (
+            HORDE.search(text)
+            and POSITIVE.search(text)
+            and not NEGATIVE.search(text)
+        ):
+            link = (
+                'https://eu.forums.blizzard.com/en/wow/t/639733/'
+                f"{post['post_number']}"
+            )
+            if post_id not in previous:
+                matches.append((f'Blizzard-Forum: {content[:150]}', link))
+
+        current.add(post_id)
 def send(message):
     response = requests.post(
         f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
@@ -67,6 +101,13 @@ def main():
                 current.add(link)
         except Exception as exc:
             print(f'Feed failed: {url}: {exc}')
+    
+    try:
+        check_blizzard_forum(previous, current, matches)
+        successes += 1
+        print('Blizzard-Forum erfolgreich geprüft.')
+    except Exception as exc:
+        print(f'Blizzard-Forum fehlgeschlagen: {exc}')
 
     if successes == 0:
         raise RuntimeError('All feeds failed; keeping previous state')
