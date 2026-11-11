@@ -83,4 +83,18 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if os.environ.get('HORDE_TEST') == '1':
+        test_text = 'WoW Forever EU PvP Horde character creation unlocked'
+
+        if (
+            HORDE.search(test_text)
+            and CONTEXT.search(test_text)
+            and POSITIVE.search(test_text)
+            and not NEGATIVE.search(test_text)
+        ):
+            send('🧪 TESTALARM: Horde-Freischaltung erkannt!\n\nDies ist nur ein Test. Keine echte Freischaltung.')
+            print('Horde-Erkennungstest erfolgreich.')
+        else:
+            raise RuntimeError('Horde-Erkennungstest fehlgeschlagen.')
+    else:
+            main()
