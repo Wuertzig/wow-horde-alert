@@ -91,7 +91,7 @@ def check_blizzard_forum(previous, current, matches):
                 f"{post['post_number']}"
             )
             if post_id not in previous:
-                matches.append((f'Blizzard-Forum: {content[:150]}', link))
+                matches.append((f'Blizzard-Forum:\n\n{content[:3000]}', link))
 
         current.add(post_id)
 def send(message):
