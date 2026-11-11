@@ -52,8 +52,23 @@ def check_blizzard_latest(previous, current, matches):
         title = topic.get('title', '')
         if HORDE.search(title) and CONTEXT.search(title) and POSITIVE.search(title) and not NEGATIVE.search(title):
             link = f"https://eu.forums.blizzard.com/en/wow/t/{topic['id']}"
+            
             if topic_id not in previous:
-                matches.append((f'Blizzard-Forum: {title}', link))
+                try:
+                    detail = requests.get(
+                        f"https://eu.forums.blizzard.com/en/wow/t/{topic['id']}.json",
+                        headers={'User-Agent': 'Mozilla/5.0'},
+                        timeout=20,
+                    )
+                    detail.raise_for_status()
+                    posts = detail.json().get('post_stream', {}).get('posts', [])
+                    content = re.sub('<[^>]*>', ' ', posts[0].get('cooked', '')) if posts else title
+                except Exception as exc:
+                    print(f'Beitragstext konnte nicht geladen werden: {exc}')
+                    content = title
+
+                matches.append((f'Blizzard-Forum:\n\n{content[:3000]}', link))
+
 
         current.add(topic_id)
 
