@@ -30,6 +30,35 @@ HORDE = re.compile(r'\bhorde\b', re.I)
 CONTEXT = re.compile(r'\b(forever|eu.pvp|pvp.eu|character creation|char creation|charaktererstellung|faction lock|fraktionssperre)\b', re.I)
 NEGATIVE = re.compile(r'\b(not unlocked|still locked|is locked|remains locked|nicht freigeschaltet|weiterhin gesperrt|noch gesperrt)\b', re.I)
 
+
+def check_blizzard_latest(previous, current, matches):
+    url = 'https://eu.forums.blizzard.com/en/wow/latest.json'
+
+    response = requests.get(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0'},
+        timeout=20,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    topics = data.get('topic_list', {}).get('topics', [])
+
+    for topic in topics:
+        topic_id = f"blizzard-topic:{topic['id']}"
+        if topic_id in current:
+            continue
+
+        title = topic.get('title', '')
+        if HORDE.search(title) and CONTEXT.search(title) and POSITIVE.search(title) and not NEGATIVE.search(title):
+            link = f"https://eu.forums.blizzard.com/en/wow/t/{topic['id']}"
+            if topic_id not in previous:
+                matches.append((f'Blizzard-Forum: {title}', link))
+
+        current.add(topic_id)
+
+    print(f'Blizzard neue Themen geprüft: {len(topics)}')
+
 def check_blizzard_forum(previous, current, matches):
     url = 'https://eu.forums.blizzard.com/en/wow/t/639733.json'
 
@@ -108,6 +137,14 @@ def main():
         print('Blizzard-Forum erfolgreich geprüft.')
     except Exception as exc:
         print(f'Blizzard-Forum fehlgeschlagen: {exc}')
+
+    
+    try:
+        check_blizzard_latest(previous, current, matches)
+        successes += 1
+        print('Blizzard-Forum: Neue Themen erfolgreich geprüft.')
+    except Exception as exc:
+        print(f'Blizzard-Forum: Neue Themen fehlgeschlagen: {exc}')
 
     if successes == 0:
         raise RuntimeError('All feeds failed; keeping previous state')
