@@ -1,0 +1,86 @@
+import json
+import os
+import re
+import urllib.parse
+from pathlib import Path
+
+import feedparser
+import requests
+
+STATE_FILE = Path('seen.json')
+BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
+CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
+
+QUERIES = [
+    '"WoW Forever" "Horde" "unlocked"',
+    '"WoW Forever" "Horde" "character creation"',
+    '"WoW Forever" "Horde" "open"',
+]
+
+FEEDS = [
+    'https://www.reddit.com/search.rss?' + urllib.parse.urlencode({'q': '"WoW Forever" "Horde"', 'sort': 'new', 't': 'week'}),
+    *[
+        'https://news.google.com/rss/search?' + urllib.parse.urlencode({'q': q, 'hl': 'en', 'gl': 'US', 'ceid': 'US:en'})
+        for q in QUERIES
+    ],
+]
+
+POSITIVE = re.compile(r'\b(unlocked|unlocking|unlocked again|open again|reopened|re-opened|available again|creation enabled|freigeschaltet|wieder offen|entsperrt)\b', re.I)
+HORDE = re.compile(r'\bhorde\b', re.I)
+CONTEXT = re.compile(r'\b(forever|eu.pvp|pvp.eu|character creation|char creation|charaktererstellung|faction lock|fraktionssperre)\b', re.I)
+NEGATIVE = re.compile(r'\b(not unlocked|still locked|is locked|remains locked|nicht freigeschaltet|weiterhin gesperrt|noch gesperrt)\b', re.I)
+
+
+def send(message):
+    response = requests.post(
+        f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
+        json={'chat_id': CHAT_ID, 'text': message, 'disable_web_page_preview': True},
+        timeout=20,
+    )
+    response.raise_for_status()
+
+
+def main():
+    previous = set(json.loads(STATE_FILE.read_text())) if STATE_FILE.exists() else set()
+    first_run = not STATE_FILE.exists()
+    current = set(previous)
+    matches = []
+    successes = 0
+
+    for url in FEEDS:
+        try:
+            response = requests.get(url, headers={'User-Agent': 'WoWHordeAlert/1.0 (personal RSS monitor)'}, timeout=20)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+            if feed.bozo and not feed.entries:
+                raise ValueError('Invalid RSS response')
+            successes += 1
+            for entry in feed.entries[:30]:
+                link = entry.get('link', '')
+                if not link:
+                    continue
+                title = entry.get('title', '')
+                summary = re.sub('<[^>]*>', ' ', entry.get('summary', ''))
+                text = f'{title} {summary}'
+                if link not in current and HORDE.search(text) and CONTEXT.search(text) and POSITIVE.search(text) and not NEGATIVE.search(text):
+                    matches.append((title, link))
+                current.add(link)
+        except Exception as exc:
+            print(f'Feed failed: {url}: {exc}')
+
+    if successes == 0:
+        raise RuntimeError('All feeds failed; keeping previous state')
+
+    if first_run:
+        print('First run: baseline saved, no old alerts sent')
+    else:
+        for title, link in matches[:10]:
+            send(f'🚨 MÖGLICHER HORDE-UNLOCK!\n\n{title}\n{link}\n\nBitte direkt im Spiel prüfen – nicht bestätigt.')
+
+    # Limit state growth; old links may eventually be re-alerted if they reappear.
+    STATE_FILE.write_text(json.dumps(sorted(current)[-3000:], indent=2) + '\n')
+    print(f'Feeds OK: {successes}/{len(FEEDS)}, new matches: {len(matches)}, first run: {first_run}')
+
+
+if __name__ == '__main__':
+    main()
