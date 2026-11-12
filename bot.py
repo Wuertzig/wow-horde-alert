@@ -25,11 +25,33 @@ FEEDS = [
     ],
 ]
 
-POSITIVE = re.compile(r'\b(unlocked|unlocking|unlocked again|open again|reopened|re-opened|available again|creation enabled|freigeschaltet|wieder offen|entsperrt)\b', re.I)
-HORDE = re.compile(r'\bhorde\b', re.I)
-CONTEXT = re.compile(r'\b(forever|eu.pvp|pvp.eu|character creation|char creation|charaktererstellung|faction lock|fraktionssperre)\b', re.I)
-NEGATIVE = re.compile(r'\b(not unlocked|still locked|is locked|remains locked|nicht freigeschaltet|weiterhin gesperrt|noch gesperrt)\b', re.I)
 
+POSITIVE = re.compile(
+    r'\b(unlocked|unlocking|unlocked again|open again|reopened|re-opened|available again|creation enabled|'
+    r'freigeschaltet|freischaltung|wieder offen|wieder geöffnet|wieder verfügbar|entsperrt|'
+    r'charaktererstellung möglich|charaktererstellung erlaubt|sperre aufgehoben|'
+    r'fraktionssperre aufgehoben|horde wieder offen)\b',
+    re.I
+)
+
+HORDE = re.compile(
+    r'\b(horde|hordenseite|horde-fraktion)\b',
+    re.I
+)
+
+CONTEXT = re.compile(
+    r'\b(forever|eu|pvp|pvp-server|character creation|char creation|'
+    r'charaktererstellung|charakter erstellen|fraktionssperre|fraktionsbeschränkung|'
+    r'faction lock|faction restriction)\b',
+    re.I
+)
+
+NEGATIVE = re.compile(
+    r'\b(not unlocked|still locked|is locked|remains locked|nicht freigeschaltet|'
+    r'weiterhin gesperrt|noch gesperrt|bleibt gesperrt|nicht möglich|'
+    r'freischaltung noch nicht|sperre bleibt bestehen)\b',
+    re.I
+)
 
 def check_blizzard_latest(previous, current, matches):
     url = 'https://eu.forums.blizzard.com/en/wow/latest.json'
