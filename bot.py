@@ -199,7 +199,7 @@ def main():
 
     if first_run:
         print('First run: baseline saved, no old alerts sent')
-        else:
+    else:
         for title, link in matches[:10]:
             if title.startswith('🔵 OFFIZIELLES BLIZZARD-UPDATE'):
                 send(
