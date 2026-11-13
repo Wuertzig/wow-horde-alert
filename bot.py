@@ -133,6 +133,56 @@ def check_blizzard_forum(previous, current, matches):
         current.add(post_id)
 
 
+def check_blizzard_us(previous, current, matches):
+    url = 'https://us.forums.blizzard.com/en/wow/t/2408781.json'
+    response = requests.get(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0'},
+        timeout=20
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    posts = data.get('post_stream', {}).get('posts', [])
+
+    for post in posts:
+        post_id = f"blizzard-us:2408781:{post['id']}"
+
+        if post_id in current:
+            continue
+
+        content = re.sub('<[^>]*>', ' ', post.get('cooked', ''))
+        link = (
+            'https://us.forums.blizzard.com/en/wow/t/'
+            f"2408781/{post['post_number']}"
+        )
+
+        is_blizzard = any(
+            str(post.get(field, '')).lower() == 'blizzard'
+            for field in ('primary_group_name', 'flair_group_name')
+        ) or post.get('username', '').lower() in {
+            'kaivax', 'aggrend'
+        }
+
+        if post_id not in previous:
+            if is_blizzard:
+                matches.append((
+                    '🔵 OFFIZIELLES BLIZZARD-UPDATE\n\n'
+                    f'{content[:3000]}',
+                    link
+                ))
+            elif (
+                HORDE.search(content)
+                and POSITIVE.search(content)
+                and not NEGATIVE.search(content)
+            ):
+                matches.append((
+                    f'US-Blizzard-Forum:\n\n{content[:3000]}',
+                    link
+                ))
+
+        current.add(post_id)
+
 def send(message):
     response = requests.post(
         f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
